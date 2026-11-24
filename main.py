@@ -47,7 +47,12 @@ def write_entry(directory: str | os.PathLike) -> Path:
 
 
 def check_round_trip(directory: str | os.PathLike) -> Path:
-    """Write entry.txt, read it back, and demand byte-identical content."""
+    """Write entry.txt, read it back, and demand byte-identical content.
+
+    The file on disk is itself re-validated against the gate (non-empty,
+    at most 200 characters, single line) so a bad artifact can never
+    pass silently even if the in-memory line was fine.
+    """
     target = write_entry(directory)
     back = target.read_bytes()
     if back != LINE.encode("utf-8"):
@@ -55,6 +60,11 @@ def check_round_trip(directory: str | os.PathLike) -> Path:
             f"round-trip mismatch: wrote {len(LINE.encode('utf-8'))} bytes, "
             f"read back {len(back)} bytes"
         )
+    try:
+        written = back.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValueError("entry.txt is not valid UTF-8")
+    validate(written)
     return target
 
 
